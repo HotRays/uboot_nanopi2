@@ -33,6 +33,7 @@
 #include <pm.h>
 
 #include <draw_lcd.h>
+#include <nxp-fb.h>
 
 #if defined(CONFIG_PMIC)
 #include <power/pmic.h>
@@ -298,6 +299,100 @@ static void bd_alive_init(void)
 	}
 }
 
+
+static void bd_lcd_init(void)
+{
+	struct nxp_lcd *cfg;
+	int width, height;
+	int ret;
+
+	cfg = drone_get_lcd();
+	width  = cfg->width;
+	height = cfg->height;
+
+#if defined(CONFIG_DISPLAY_OUT)
+	/* Clear framebuffer */
+	memset((void *)CONFIG_FB_ADDR, 0, width * height * 4);
+#endif
+}
+
+static void bd_update_env(void)
+{
+	char *lcdtype = getenv("lcdtype");
+	char *lcddpi = getenv("lcddpi");
+	char *bootargs = getenv("bootargs");
+	const char *name;
+	char *p = NULL;
+
+#define CMDLINE_LCD		" lcd="
+	char cmdline[CONFIG_SYS_CBSIZE];
+	int n = 1;
+
+	if (lcdtype) {
+		/* Setup again as user specified LCD in env */
+		drone_setup_lcd_by_name(lcdtype);
+	}
+
+	name = drone_get_lcd_name();
+	printf("drone lcd: %s\n", name);
+
+	if (bootargs)
+		n = strlen(bootargs);	/* isn't 0 for NULL */
+	else
+		cmdline[0] = '\0';
+
+	if ((n + strlen(name) + sizeof(CMDLINE_LCD)) > sizeof(cmdline)) {
+		printf("Error: `bootargs' is too large (%d)\n", n);
+		return;
+	}
+
+	if (bootargs) {
+		p = strstr(bootargs, CMDLINE_LCD);
+		if (p) {
+			n = (p - bootargs);
+			p += strlen(CMDLINE_LCD);
+		}
+		strncpy(cmdline, bootargs, n);
+	}
+
+	/* add `lcd=NAME,NUMdpi' */
+	strncpy(cmdline + n, CMDLINE_LCD, strlen(CMDLINE_LCD));
+	n += strlen(CMDLINE_LCD);
+
+	strcpy(cmdline + n, name);
+	n += strlen(name);
+
+	if (lcddpi) {
+		n += sprintf(cmdline + n, ",%sdpi", lcddpi);
+	} else {
+		int dpi = drone_get_lcd_density();
+
+		if (dpi > 0 && dpi < 600) {
+			n += sprintf(cmdline + n, ",%ddpi", dpi);
+		}
+	}
+
+	/* copy remaining of bootargs */
+	if (p) {
+		p = strstr(p, " ");
+		if (p) {
+			strcpy(cmdline + n, p);
+			n += strlen(p);
+		}
+	}
+
+	/* append `bootdev=2' */
+#define CMDLINE_BDEV	" bootdev="
+	if (!strstr(cmdline, CMDLINE_BDEV)) {
+		n += sprintf(cmdline + n, "%s2", CMDLINE_BDEV);
+	}
+
+	if (bootargs && strncmp(cmdline, bootargs, sizeof(cmdline))) {
+		setenv("bootargs", cmdline);
+		saveenv();
+	}
+}
+
 /* call from u-boot */
 int board_early_init_f(void)
 {
@@ -314,6 +409,8 @@ int board_early_init_f(void)
 
 int board_init(void)
 {
+	bd_lcd_init();
+
 	DBGOUT("%s : done board init ...\n", CFG_SYS_BOARD_NAME);
 	return 0;
 }
@@ -363,24 +460,32 @@ void bd_display_run(char *cmd, int bl_duty, int bl_on)
 {
 	static int display_init = 0;
 
-	if (cmd) {
-		run_command(cmd, 0);
-		lcd_draw_boot_logo(CONFIG_FB_ADDR, CFG_DISP_PRI_RESOL_WIDTH,
-			CFG_DISP_PRI_RESOL_HEIGHT, CFG_DISP_PRI_SCREEN_PIXEL_BYTE);
-	}
-
 	if (!display_init) {
 		bd_display();
+
+#if defined(CFG_LCD_PRI_PWM_CH)
 		pwm_init(CFG_LCD_PRI_PWM_CH, 0, 0);
+		pwm_config(CFG_LCD_PRI_PWM_CH,
+			TO_DUTY_NS(bl_duty, CFG_LCD_PRI_PWM_FREQ),
+			TO_PERIOD_NS(CFG_LCD_PRI_PWM_FREQ));
+#endif
+
 		display_init = 1;
 	}
 
-	pwm_config(CFG_LCD_PRI_PWM_CH,
-		TO_DUTY_NS(bl_duty, CFG_LCD_PRI_PWM_FREQ),
-		TO_PERIOD_NS(CFG_LCD_PRI_PWM_FREQ));
+	if (cmd) {
+		struct nxp_lcd *lcd = drone_get_lcd();
 
-	if (bl_on)
+		run_command(cmd, 0);
+		lcd_draw_boot_logo(CONFIG_FB_ADDR, lcd->width, lcd->height,
+			CFG_DISP_PRI_SCREEN_PIXEL_BYTE);
+	}
+
+	if (bl_on) {
+#if defined(CFG_LCD_PRI_PWM_CH)
 		pwm_enable(CFG_LCD_PRI_PWM_CH);
+#endif
+	}
 }
 
 #define	UPDATE_KEY			(PAD_GPIO_ALV + 0)
@@ -393,6 +498,19 @@ int board_late_init(void)
 	sprintf(boot, "mmc dev %d", CONFIG_SYS_MMC_BOOT_DEV);
 	run_command(boot, 0);
 #endif
+
+	if (!getenv("firstboot")) {
+#ifdef CONFIG_LOADCMD_CH0
+		setenv("bloader", CONFIG_LOADCMD_CH0);
+#endif
+#ifdef CONFIG_BOOTCMD_CH0
+		setenv("bootcmd", CONFIG_BOOTCMD_CH0);
+#endif
+		setenv("firstboot", "0");
+		saveenv();
+	}
+
+	bd_update_env();
 
 #if defined(CONFIG_RECOVERY_BOOT)
     if (RECOVERY_SIGNATURE == readl(SCR_RESET_SIG_READ)) {

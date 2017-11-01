@@ -1,4 +1,5 @@
 
+#obj-$(CONFIG_S5P_SERIAL)			+= ../devices/serial_s5p.o
 obj-$(CONFIG_PWM)					+= ../devices/pwm.o
 #ifdef CONFIG_NAND_MTD
 obj-$(CONFIG_MTD_NAND_NXP)			+= ../devices/nand.o

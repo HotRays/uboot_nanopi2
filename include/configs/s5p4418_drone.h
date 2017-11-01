@@ -99,7 +99,7 @@
  *	U-Boot default cmd
  */
 #define CONFIG_CMD_MEMORY   /* md mm nm mw cp cmp crc base loop mtest */
-#define CONFIG_CMD_NET      /* bootp, tftpboot, rarpboot    */
+//#define CONFIG_CMD_NET      /* bootp, tftpboot, rarpboot    */
 #define CONFIG_CMD_RUN      /* run command in env variable  */
 #define CONFIG_CMD_SAVEENV  /* saveenv          */
 #define CONFIG_CMD_SOURCE   /* "source" command support */
@@ -161,20 +161,24 @@
  * serial console configuration
  */
 #define CONFIG_PL011_SERIAL
-#define CONFIG_CONS_INDEX				CFG_UART_DEBUG_CH
-#define CONFIG_PL011_CLOCK				CFG_UART_CLKGEN_CLOCK_HZ
-#define CONFIG_PL01x_PORTS				{ (void *)IO_ADDRESS(PHY_BASEADDR_UART0), 	\
-										  (void *)IO_ADDRESS(PHY_BASEADDR_UART1) }
+#define CONFIG_CONS_INDEX                              CFG_UART_DEBUG_CH
+#define CONFIG_PL011_CLOCK                             CFG_UART_CLKGEN_CLOCK_HZ
+#define CONFIG_PL01x_PORTS                             { (void *)IO_ADDRESS(PHY_BASEADDR_UART0),\
+															(void *)IO_ADDRESS(PHY_BASEADDR_UART1), \
+															(void *)IO_ADDRESS(PHY_BASEADDR_UART2), \
+															(void *)IO_ADDRESS(PHY_BASEADDR_UART3), \
+															(void *)IO_ADDRESS(PHY_BASEADDR_UART4), \
+                                                         	(void *)IO_ADDRESS(PHY_BASEADDR_UART5) }
 
-#define CONFIG_BAUDRATE		   			CFG_UART_DEBUG_BAUDRATE
-#define CONFIG_SYS_BAUDRATE_TABLE	   	{ 9600, 19200, 38400, 57600, 115200 }
+#define CONFIG_BAUDRATE                       CFG_UART_DEBUG_BAUDRATE
+#define CONFIG_SYS_BAUDRATE_TABLE              { 9600, 19200, 38400, 57600, 115200 }
 #define CONFIG_PL011_SERIAL_FLUSH_ON_INIT
 
 /*-----------------------------------------------------------------------
  * Ethernet configuration
  * depend on CONFIG_CMD_NET
  */
-#define CONFIG_DRIVER_DM9000			1
+//#define CONFIG_DRIVER_DM9000			1
 
 #if defined(CONFIG_CMD_NET)
 	/* DM9000 Ethernet device */
@@ -394,23 +398,22 @@
 		#define CONFIG_POWER_FG
 		#define CONFIG_POWER_MUIC
 
-		#define CONFIG_PMIC_AXP228
+		#define CONFIG_PMIC_NXE2000
 	#endif
 
-	#if defined(CONFIG_PMIC_AXP228)
-		#define CONFIG_POWER_PMIC_AXP228
-		#define CONFIG_POWER_BATTERY_AXP228
-		#define CONFIG_POWER_MUIC_AXP228
-		#define CONFIG_POWER_FG_AXP228
+	#if defined(CONFIG_PMIC_NXE2000)
+		#define CONFIG_POWER_NXE2000
+		#define CONFIG_POWER_BATTERY_NXE2000
+		#define CONFIG_POWER_MUIC_NXE2000
+		#define CONFIG_POWER_FG_NXE2000
 
-		#define	CFG_IO_I2C3_SCL	((PAD_GPIO_D + 20) | PAD_FUNC_ALT0)
-		#define	CFG_IO_I2C3_SDA	((PAD_GPIO_D + 16) | PAD_FUNC_ALT0)
+		#define CONFIG_PMIC_CHARGING_PATH	CONFIG_PMIC_CHARGING_PATH_ADP
 
 		#define CONFIG_SW_UBC_DETECT							/* need with CONFIG_FASTBOOT. */
 
-		#define CONFIG_HAVE_BATTERY
+		// #define CONFIG_HAVE_BATTERY
 
-		//#define CONFIG_ENABLE_INIT_VOLTAGE						/* enable set voltage(ARM, CORE)  */
+		#define CONFIG_ENABLE_INIT_VOLTAGE							/* enable set voltage(ARM, CORE)  */
 
 		//#define CONFIG_PMIC_REG_DUMP
 	#endif
@@ -601,7 +604,10 @@
 #if	defined(CONFIG_DISPLAY_OUT)
 	#define	CONFIG_PWM			/* backlight */
 	/* display out device */
-	#define	CONFIG_DISPLAY_OUT_RGB
+	// #define	CONFIG_DISPLAY_OUT_RGB
+	// #define	CONFIG_DISPLAY_OUT_LVDS
+	#define	CONFIG_DISPLAY_OUT_MIPI
+    // #define	CONFIG_DISPLAY_OUT_HDMI
 
 	/* display logo */
 	#define CONFIG_LOGO_NEXELL				/* Draw loaded bmp file to FB or fill FB */
